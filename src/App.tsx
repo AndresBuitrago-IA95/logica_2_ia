@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BookOpen, 
   ChevronRight, 
@@ -37,6 +37,7 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [topicContent, setTopicContent] = useState<TopicContent | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorType, setErrorType] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'explanation' | 'exercises'>('explanation');
   const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
   const [showResults, setShowResults] = useState<Record<number, boolean>>({});
@@ -50,13 +51,20 @@ export default function App() {
   const loadTopic = async (title: string) => {
     setIsLoading(true);
     setTopicContent(null);
+    setErrorType(null);
     setUserAnswers({});
     setShowResults({});
     try {
       const content = await getTopicContent(title);
       setTopicContent(content);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error loading topic:", error);
+      const errorMessage = error.message || "";
+      if (errorMessage.includes("API key must be set") || errorMessage === "API_KEY_MISSING") {
+        setErrorType("API_KEY_MISSING");
+      } else {
+        setErrorType(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -398,8 +406,25 @@ export default function App() {
                 </motion.div>
               ) : (
                 <div className="flex flex-col items-center justify-center p-12 text-slate-400">
-                  <AlertCircle size={48} className="mb-4" />
-                  <p>No se pudo cargar el contenido. Por favor intenta de nuevo.</p>
+                  <AlertCircle size={48} className="mb-4 text-amber-500" />
+                  <p className="font-bold text-slate-900 mb-2">
+                    {errorType === 'API_KEY_MISSING' 
+                      ? "Falta la configuración de la IA" 
+                      : "No se pudo cargar el contenido"}
+                  </p>
+                  <p className="text-sm text-center max-w-xs">
+                    {errorType === 'API_KEY_MISSING'
+                      ? "Asegúrate de haber configurado la variable VITE_GEMINI_API_KEY en Netlify/Vercel."
+                      : `Error: ${errorType || "Error desconocido"}`}
+                  </p>
+                  {errorType !== 'API_KEY_MISSING' && (
+                    <button 
+                      onClick={() => selectedTopic && loadTopic(selectedTopic.title)}
+                      className="mt-4 text-xs font-bold text-emerald-600 hover:underline"
+                    >
+                      Reintentar carga
+                    </button>
+                  )}
                 </div>
               )}
             </div>

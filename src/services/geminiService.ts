@@ -1,6 +1,20 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+let aiInstance: GoogleGenAI | null = null;
+
+function getAI() {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  
+  // Check if key is missing or is the literal string "undefined" (common in some build environments)
+  if (!apiKey || apiKey === "undefined" || apiKey === "") {
+    throw new Error("API_KEY_MISSING");
+  }
+
+  if (!aiInstance) {
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+}
 
 export interface TopicContent {
   explanation: string;
@@ -15,9 +29,11 @@ export interface TopicContent {
 }
 
 export async function getTopicContent(topicName: string): Promise<TopicContent> {
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: `Genera contenido educativo profundo y altamente organizado para el tema: "${topicName}" de la materia Lógica y Representación II.
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: "gemini-flash-latest",
+      contents: `Genera contenido educativo profundo y altamente organizado para el tema: "${topicName}" de la materia Lógica y Representación II.
     
     REQUISITOS DE FORMATO:
     1. Explicación: Usa Markdown con subtítulos claros (###), listas y negritas para resaltar conceptos clave.
@@ -56,4 +72,8 @@ export async function getTopicContent(topicName: string): Promise<TopicContent> 
   });
 
   return JSON.parse(response.text || "{}") as TopicContent;
+} catch (error: any) {
+  console.error("Gemini API Error:", error);
+  throw error;
+}
 }
